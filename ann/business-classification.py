@@ -44,15 +44,20 @@ X_test=sc.fit_transform(X_test)
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
 
-#Initialiing ANN
+#Initialising ANN
 classifier=Sequential()
 
 #Input layer and first hiddden layer
 classifier.add(Dense(activation="relu",input_dim=11,units=6,kernel_initializer="uniform"))
+#dropout
+classifier.add(Dropout(p=0.1))
 
 #second hidden layer
 classifier.add(Dense(activation="relu",units=6,kernel_initializer="uniform"))
+#dropout
+classifier.add(Dropout(p=0.1))
 
 #output layer
 classifier.add(Dense(activation="sigmoid",units=1,kernel_initializer="uniform"))
@@ -73,37 +78,61 @@ classifier.fit(X_train,y_train,batch_size=10,epochs=100)
 y_pred = classifier.predict(X_test)
 y_pred = (y_pred>0.5)
 
+new_prediction = classifier.predict(sc.transform(np.array([[0.0,0,600,1,40,3,60000,2,1,1,50000]])))
+new_prediction=(new_prediction > 0.5)
 
 #confusion matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_test,y_pred)
 
+#Evaluating,Improving and tuning ANN
+
+#Evaluating ANN
+from keras.wrappers.scikit_learn import KerasClassifier 
+from sklearn.model_selection import cross_val_score
+
+def build_classifier():
+    classifier=Sequential()
+    classifier.add(Dense(activation="relu",input_dim=11,units=6,kernel_initializer="uniform"))
+    classifier.add(Dense(activation="relu",units=6,kernel_initializer="uniform"))
+    classifier.add(Dense(activation="sigmoid",units=1,kernel_initializer="uniform"))
+    classifier.compile(optimizer="adam",loss="binary_crossentropy",metrics=["accuracy"])
+    return classifier
+
+classifier = KerasClassifier(build_fn=build_classifier,batch_size=10,nb_epoch=100)
+accuracies = cross_val_score(estimator=classifier, X = X_train, y = y_train, cv=10 , n_jobs=1)
+
+mean=accuracies.mean()
+variance=accuracies.std()
+
+#Improving ANN
+#Dropout regularization for overfitting
 
 
+#Tuning ANN
 
+from keras.wrappers.scikit_learn import KerasClassifier 
+from sklearn.model_selection import GridSearchCV
 
+def build_classifier(optimizer):
+    classifier=Sequential()
+    classifier.add(Dense(activation="relu",input_dim=11,units=6,kernel_initializer="uniform"))
+    classifier.add(Dense(activation="relu",units=6,kernel_initializer="uniform"))
+    classifier.add(Dense(activation="sigmoid",units=1,kernel_initializer="uniform"))
+    classifier.compile(optimizer=optimizer,loss="binary_crossentropy",metrics=["accuracy"])
+    return classifier
 
+classifier = KerasClassifier(build_fn=build_classifier)
+parameters = {"batch_size":[25,32],
+              "nb_epoch":[100,500],
+              "optimizer":['adam','rmsprop']
+              }
 
+grid_search = GridSearchCV(estimator=classifier,param_grid=parameters,scoring='accuracy',cv=10)
+grid_search = grid_search.fit(X_train,y_train)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+best_parameters = grid_search.best_params_
+best_accuracy = grid_search.best_score_
 
 
 
